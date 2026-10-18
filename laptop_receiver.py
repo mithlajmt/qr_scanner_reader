@@ -31,28 +31,86 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("virtual_scanner")
 
 
+import os
+import shutil
+import subprocess
+
 def inject_keystrokes(text: str, hit_enter: bool = True):
     """
     Simulates physical USB scanner keystrokes into the active window.
+    Supports Windows (ctypes/pynput), Linux Wayland (wtype), Linux X11 (xdotool/pynput),
+    plus automatic clipboard synchronization and local file logging.
     """
-    if keyboard_controller:
-        # Cross-platform typing via pynput
-        keyboard_controller.type(text)
-        if hit_enter:
-            time.sleep(0.01)
-            keyboard_controller.press(Key.enter)
-            keyboard_controller.release(Key.enter)
-    else:
-        # Fallback for Windows using ctypes
-        import ctypes
-        user32 = ctypes.windll.user32
-        for char in text:
-            user32.keybd_event(0, ord(char), 0x0004, 0)         # KEYEVENTF_UNICODE = 0x0004
-            user32.keybd_event(0, ord(char), 0x0004 | 0x0002, 0) # KEYEVENTF_KEYUP = 0x0002
-            time.sleep(0.002)
-        if hit_enter:
-            user32.keybd_event(0x0D, 0, 0, 0)
-            user32.keybd_event(0x0D, 0, 0x0002, 0)
+    typed_successfully = False
+
+    # 1. Always save to local file for convenience
+    try:
+        with open("latest_scan.txt", "w", encoding="utf-8") as f:
+            f.write(text)
+        with open("scans_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {text}\n")
+    except Exception:
+        pass
+
+    # 2. Linux Wayland native: wtype
+    if sys.platform.startswith("linux") and shutil.which("wtype"):
+        try:
+            subprocess.run(["wtype", text], check=True, timeout=2)
+            if hit_enter:
+                subprocess.run(["wtype", "-k", "Return"], check=True, timeout=2)
+            typed_successfully = True
+        except Exception as e:
+            logger.debug(f"wtype typing failed: {e}")
+
+    # 3. Linux X11 native: xdotool
+    if not typed_successfully and sys.platform.startswith("linux") and shutil.which("xdotool"):
+        try:
+            subprocess.run(["xdotool", "type", "--delay", "2", text], check=True, timeout=2)
+            if hit_enter:
+                subprocess.run(["xdotool", "key", "Return"], check=True, timeout=2)
+            typed_successfully = True
+        except Exception as e:
+            logger.debug(f"xdotool typing failed: {e}")
+
+    # 4. Standard pynput (Windows / X11)
+    if not typed_successfully and keyboard_controller:
+        try:
+            keyboard_controller.type(text)
+            if hit_enter:
+                time.sleep(0.01)
+                keyboard_controller.press(Key.enter)
+                keyboard_controller.release(Key.enter)
+            typed_successfully = True
+        except Exception as e:
+            logger.warning(f"pynput typing encountered: {e}")
+
+    # 5. Fallback for Windows using ctypes
+    if not typed_successfully and sys.platform.startswith("win"):
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            for char in text:
+                user32.keybd_event(0, ord(char), 0x0004, 0)
+                user32.keybd_event(0, ord(char), 0x0004 | 0x0002, 0)
+                time.sleep(0.002)
+            if hit_enter:
+                user32.keybd_event(0x0D, 0, 0, 0)
+                user32.keybd_event(0x0D, 0, 0x0002, 0)
+            typed_successfully = True
+        except Exception as e:
+            logger.error(f"Windows ctypes typing error: {e}")
+
+    # 6. Synchronize with system clipboard as a backup on Linux
+    if sys.platform.startswith("linux"):
+        try:
+            if shutil.which("wl-copy"):
+                subprocess.run(["wl-copy"], input=text.encode("utf-8"), check=False, timeout=1)
+            elif shutil.which("xclip"):
+                subprocess.run(["xclip", "-selection", "clipboard"], input=text.encode("utf-8"), check=False, timeout=1)
+        except Exception:
+            pass
+
+    return typed_successfully
 
 
 async def receiver_loop(host: str, port: int = 8000):
