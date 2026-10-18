@@ -35,13 +35,32 @@ Mount the USB QR scanner to the robot's chest connected to a **Raspberry Pi 5**,
 │  │                        │    Windows: listens to console/terminal keystrokes
 │  └── server.py (FastAPI)  │ ── Broadcasts scans via WebSockets on Port 8000
 └──────────────┬────────────┘
-               │ (Local Wi-Fi Network)
-               ▼
-┌───────────────────────────┐
-│ Laptop / Mobile Browser   │ ── http://<ip>:8000
-│  └── Live Cyberpunk HUD   │ ── Instant scan popups, sound chime, copy & history
-└───────────────────────────┘
+                               │ (Local Wi-Fi Network)
+                               ▼
+     ┌────────────────────────────────────────────────────────┐
+     │                                                        │
+     ▼                                                        ▼
+┌───────────────────────────┐            ┌────────────────────────────────────────┐
+│ Laptop / Mobile Browser   │            │ Laptop Virtual USB Receiver            │
+│  └── Live Cyberpunk HUD   │            │  └── laptop_receiver.py                │
+│      (http://<ip>:8000)   │            │      Directly types into Notepad/Excel │
+└───────────────────────────┘            └────────────────────────────────────────┘
 ```
+
+---
+
+## ⌨️ Wireless Virtual USB Scanner Mode (Typing into Notepad/Excel)
+
+If you want the laptop to behave **as if the scanner was physically plugged into it via USB** (automatically typing scanned values and pressing Enter into Notepad, Excel, or any application):
+
+1. **On your laptop**, simply double-click:
+   ```
+   start_receiver.bat
+   ```
+   *(Or run `python laptop_receiver.py <ROBOT_IP>` in terminal)*
+2. It will connect to your robot over Wi-Fi.
+3. Open **Notepad, Word, Excel, or any web form** and click anywhere to place your cursor.
+4. When someone scans a QR code on the robot, **it types the string into your app and hits `Enter` automatically!**
 
 ---
 
