@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robuverse Robot QR Scanner HUD</title>
+    <meta name="description" content="Live Real-time QR Code Scanner Monitor for Robuverse Robot">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="hud-background">
+        <div class="grid-overlay"></div>
+        <div class="ambient-glow cyan-glow"></div>
+        <div class="ambient-glow purple-glow"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Top Navigation / Status Header -->
+        <header class="hud-header">
+            <div class="brand-group">
+                <div class="robot-avatar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <path d="M12 7v4"></path>
+                        <line x1="8" y1="16" x2="8" y2="16"></line>
+                        <line x1="16" y1="16" x2="16" y2="16"></line>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="brand-title">ROBUVERSE <span>CHEST SCANNER</span></h1>
+                    <p class="brand-subtitle">Raspberry Pi 5 Real-Time Telemetry</p>
+                </div>
+            </div>
+
+            <div class="header-status-group">
+                <div class="sound-toggle-btn" id="soundToggle" title="Toggle audio chime on scan">
+                    <svg class="sound-icon-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    </svg>
+                    <span id="soundLabel">Sound: ON</span>
+                </div>
+
+                <div class="status-badge" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text" id="statusText">CONNECTING...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="hud-grid">
+            <!-- Hero Card: Latest Scan -->
+            <section class="card hero-card">
+                <div class="card-header">
+                    <div class="card-badge">
+                        <span class="pulse-ring"></span>
+                        LATEST DETECTED QR
+                    </div>
+                    <div class="scan-time-badge" id="latestTime">Waiting for scan...</div>
+                </div>
+
+                <div class="scan-display-area" id="scanDisplayArea">
+                    <div class="empty-state" id="emptyState">
+                        <div class="radar-scan-anim">
+                            <div class="radar-beam"></div>
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                        </div>
+                        <p class="scan-prompt">Point QR code towards robot chest scanner</p>
+                        <span class="scan-prompt-sub">Ready to receive live inputs</span>
+                    </div>
+
+                    <div class="active-scan-container hidden" id="activeScanContainer">
+                        <div class="scan-content-wrapper">
+                            <div class="scan-source-pill" id="latestSource">USB SCANNER</div>
+                            <div class="scan-value" id="latestValue">---</div>
+                        </div>
+                        <div class="scan-actions">
+                            <button class="btn btn-copy" id="copyBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span id="copyBtnText">Copy Value</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats summary bar inside Hero -->
+                <div class="hero-footer">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Scans</span>
+                        <span class="stat-value" id="totalScansCount">0</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-label">Network IP</span>
+                        <span class="stat-value monospace" id="ipAddressDisplay">Detecting...</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-label">Hardware Link</span>
+                        <span class="stat-value active-link" id="hardwareStatus">Active</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sidebar / History & Simulation -->
+            <div class="sidebar-column">
+                <!-- Manual Simulation Box -->
+                <section class="card sim-card">
+                    <div class="card-header-compact">
+                        <h3 class="section-title">Manual / Remote Test</h3>
+                        <span class="section-subtitle">Simulate scan</span>
+                    </div>
+                    <form class="sim-form" id="simForm">
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="simInput" 
+                                placeholder="Type or paste QR string here..." 
+                                autocomplete="off"
+                            >
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="simSubmitBtn">
+                            <span>Trigger Scan</span>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Scan History Card -->
+                <section class="card history-card">
+                    <div class="card-header-compact">
+                        <div class="history-title-group">
+                            <h3 class="section-title">Scan Log</h3>
+                            <span class="badge-count" id="historyBadgeCount">0</span>
+                        </div>
+                        <button class="btn-text-danger" id="clearHistoryBtn" title="Clear log">Clear</button>
+                    </div>
+
+                    <div class="history-list" id="historyList">
+                        <div class="history-empty">No scans recorded yet.</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer / Instructions Bar -->
+        <footer class="hud-footer">
+            <div class="guide-tip">
+                <span class="tip-icon">💡</span>
+                <span>To view this dashboard on another laptop or phone, ensure both are on the same Wi-Fi and open: <strong class="network-url" id="networkUrlText">http://localhost:8000</strong></span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
